@@ -1,0 +1,109 @@
+{% extends "base.html" %} {% block content %}
+<div class="jumbotron">
+  <h1 class="display-4">Distributed Messaging Queue with RabbitMQ</h1>
+  <p class="lead">
+    A testing platform for RabbitMQ exchange types and MIME types in a
+    distributed environment.
+  </p>
+  <hr class="my-4" />
+  <p>
+    This application allows you to experiment with different RabbitMQ exchange
+    types, message formats, and distributed messaging patterns. You can
+    configure and test various scenarios to understand real-world trade-offs
+    between reliability, scalability, and performance.
+  </p>
+</div>
+
+<div class="row mt-5">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header bg-primary text-white">Exchange Types</div>
+      <div class="card-body">
+        <h5 class="card-title">Test different exchange types</h5>
+        <p class="card-text">
+          Explore how different exchange types route messages between producers
+          and consumers.
+        </p>
+        <ul class="list-group list-group-flush mb-3">
+          <li class="list-group-item">
+            <strong>Direct Exchange:</strong> Route messages based on an exact
+            routing key match
+          </li>
+          <li class="list-group-item">
+            <strong>Fanout Exchange:</strong> Broadcast messages to all bound
+            queues
+          </li>
+          <li class="list-group-item">
+            <strong>Topic Exchange:</strong> Route messages based on wildcard
+            pattern matching
+          </li>
+          <li class="list-group-item">
+            <strong>Headers Exchange:</strong> Route messages based on header
+            attributes
+          </li>
+        </ul>
+        <a
+          href="{{ url_for('examples.direct_exchange_page') }}"
+          class="btn btn-primary"
+          >Try Exchange Examples</a
+        >
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header bg-success text-white">
+        Message Formats & MIME Types
+      </div>
+      <div class="card-body">
+        <h5 class="card-title">Test different message formats</h5>
+        <p class="card-text">
+          Send and receive messages in various formats with different MIME
+          types.
+        </p>
+        <ul class="list-group list-group-flush mb-3">
+          <li class="list-group-item">
+            <strong>text/plain:</strong> Simple text messages
+          </li>
+          <li class="list-group-item">
+            <strong>application/json:</strong> Structured JSON data
+          </li>
+          <li class="list-group-item">
+            <strong>application/xml:</strong> XML formatted data
+          </li>
+          <li class="list-group-item">
+            <strong>application/octet-stream:</strong> Binary data
+          </li>
+        </ul>
+        <a
+          href="{{ url_for('examples.headers_exchange_page') }}"
+          class="btn btn-success"
+          >Try MIME Type Examples</a
+        >
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row mt-4">
+  <div class="col-md-12">
+    <div class="card">
+      <div class="card-header bg-info text-white">Cluster Management</div>
+      <div class="card-body">
+        <h5 class="card-title">Manage and monitor your RabbitMQ cluster</h5>
+        <p class="card-text">
+          View the status of your RabbitMQ cluster, add or remove nodes, and
+          test high availability features.
+        </p>
+        <a href="{{ url_for('cluster.cluster_status') }}" class="btn btn-info"
+          >Cluster Status</a
+        >
+        <a href="{{ url_for('cluster.cluster_manage') }}" class="btn btn-info"
+          >Manage Cluster</a
+        >
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

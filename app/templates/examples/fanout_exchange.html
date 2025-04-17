@@ -1,0 +1,379 @@
+{% extends "base.html" %} {% block content %}
+<h2>Fanout Exchange Testing</h2>
+<p class="lead">
+  Test broadcasting messages to multiple queues using fanout exchanges.
+</p>
+<p>
+  A fanout exchange routes messages to all queues that are bound to it. This
+  type of exchange is ideal for broadcasting messages to multiple consumers.
+</p>
+
+<div class="row mt-4">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header bg-primary text-white">Setup Consumer</div>
+      <div class="card-body">
+        <form id="consumerForm">
+          <div class="mb-3">
+            <label for="exchangeName" class="form-label">Exchange Name</label>
+            <input
+              type="text"
+              class="form-control"
+              id="exchangeName"
+              name="exchangeName"
+              value="fanout_exchange_test"
+            />
+          </div>
+          <div class="mb-3">
+            <label for="queueName" class="form-label">Queue Name</label>
+            <input
+              type="text"
+              class="form-control"
+              id="queueName"
+              name="queueName"
+              value="fanout_queue_test"
+            />
+            <small class="text-muted">
+              For fanout exchanges, you can leave this empty to use a
+              system-generated name, or provide a name for a persistent queue.
+            </small>
+          </div>
+          <div class="mb-3">
+            <label for="mimeType" class="form-label">Expected MIME Type</label>
+            <select class="form-select" id="mimeType" name="mimeType">
+              <option value="text/plain">text/plain</option>
+              <option value="application/json">application/json</option>
+              <option value="application/xml">application/xml</option>
+              <option value="application/octet-stream">
+                application/octet-stream
+              </option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="hostAddress" class="form-label">RabbitMQ Host</label>
+            <input
+              type="text"
+              class="form-control"
+              id="hostAddress"
+              name="hostAddress"
+              value="localhost"
+            />
+          </div>
+          <div class="mb-3">
+            <label for="port" class="form-label">Port</label>
+            <input
+              type="number"
+              class="form-control"
+              id="port"
+              name="port"
+              value="5672"
+            />
+          </div>
+          <button type="submit" class="btn btn-primary">Start Consumer</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header bg-success text-white">Send Message</div>
+      <div class="card-body">
+        <form id="producerForm">
+          <div class="mb-3">
+            <label for="pubExchangeName" class="form-label"
+              >Exchange Name</label
+            >
+            <input
+              type="text"
+              class="form-control"
+              id="pubExchangeName"
+              name="pubExchangeName"
+              value="fanout_exchange_test"
+            />
+          </div>
+          <div class="mb-3">
+            <label for="pubMimeType" class="form-label">MIME Type</label>
+            <select class="form-select" id="pubMimeType" name="pubMimeType">
+              <option value="text/plain">text/plain</option>
+              <option value="application/json">application/json</option>
+              <option value="application/xml">application/xml</option>
+              <option value="application/octet-stream">
+                application/octet-stream
+              </option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="message" class="form-label">Message</label>
+            <textarea class="form-control" id="message" name="message" rows="3">
+Hello from fanout exchange!</textarea
+            >
+          </div>
+          <div class="mb-3">
+            <label for="pubHost" class="form-label">RabbitMQ Host</label>
+            <input
+              type="text"
+              class="form-control"
+              id="pubHost"
+              name="pubHost"
+              value="localhost"
+            />
+          </div>
+          <div class="mb-3">
+            <label for="pubPort" class="form-label">Port</label>
+            <input
+              type="number"
+              class="form-control"
+              id="pubPort"
+              name="pubPort"
+              value="5672"
+            />
+          </div>
+          <button type="submit" class="btn btn-success">Send Message</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row mt-4">
+  <div class="col-md-12">
+    <div class="card">
+      <div class="card-header bg-info text-white">Received Messages</div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between mb-3">
+          <h5 class="card-title">Message Log</h5>
+          <button id="clearMessages" class="btn btn-outline-secondary btn-sm">
+            Clear Messages
+          </button>
+        </div>
+        <div
+          id="messageLog"
+          class="border p-3 bg-light"
+          style="min-height: 200px; max-height: 400px; overflow-y: auto"
+        >
+          <p class="text-muted">
+            No messages received yet. Start a consumer and publish messages to
+            see them here.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row mt-4">
+  <div class="col-md-12">
+    <div class="card">
+      <div class="card-header bg-secondary text-white">
+        Testing Multiple Consumers
+      </div>
+      <div class="card-body">
+        <p>
+          To test the broadcast nature of fanout exchanges, open this page in
+          multiple browser tabs or windows. Set up a consumer in each tab with
+          different queue names, then send a message from any tab. All consumers
+          bound to the same exchange will receive the message.
+        </p>
+        <div class="alert alert-info">
+          <i class="bi bi-info-circle"></i>
+          For best results, create a new queue for each consumer to ensure all
+          consumers receive messages.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  let resultId = null;
+  let configId = null;
+  let messagePollingInterval = null;
+
+  // Start a consumer for receiving messages
+  $("#consumerForm").submit(function (e) {
+    e.preventDefault();
+
+    // Stop existing polling
+    if (messagePollingInterval) {
+      clearInterval(messagePollingInterval);
+    }
+
+    const exchangeName = $("#exchangeName").val();
+    const queueName = $("#queueName").val();
+    const mimeType = $("#mimeType").val();
+    const host = $("#hostAddress").val();
+    const port = $("#port").val();
+
+    $.ajax({
+      url: '{{ url_for("examples.api_start_consumer") }}',
+      type: "POST",
+      contentType: "application/json",
+      data: JSON.stringify({
+        exchange_type: "fanout",
+        exchange_name: exchangeName,
+        queue_name: queueName,
+        routing_key: "", // Not used for fanout exchange
+        mime_type: mimeType,
+        host: host,
+        port: parseInt(port),
+      }),
+      success: function (response) {
+        if (response.success) {
+          resultId = response.result_id;
+          configId = response.config_id;
+
+          // Update producer form with consumer settings for convenience
+          $("#pubExchangeName").val(exchangeName);
+          $("#pubMimeType").val(mimeType);
+          $("#pubHost").val(host);
+          $("#pubPort").val(port);
+
+          // Display success message
+          alert("Consumer started successfully!");
+
+          // Start polling for messages
+          $("#messageLog").html("");
+          startMessagePolling();
+        }
+      },
+      error: function (xhr, status, error) {
+        alert("Error starting consumer: " + error);
+      },
+    });
+  });
+
+  // Send a message through the producer
+  $("#producerForm").submit(function (e) {
+    e.preventDefault();
+
+    const exchangeName = $("#pubExchangeName").val();
+    const mimeType = $("#pubMimeType").val();
+    const message = $("#message").val();
+    const host = $("#pubHost").val();
+    const port = $("#pubPort").val();
+
+    let messageToSend = message;
+
+    // If JSON mime type is selected, try to parse the message as JSON
+    if (mimeType === "application/json" && message.trim()) {
+      try {
+        // Try to parse as JSON to validate
+        JSON.parse(message);
+        // It's valid JSON, send as-is
+        messageToSend = message;
+      } catch (e) {
+        // Not valid JSON, so wrap it in a JSON object
+        messageToSend = JSON.stringify({ message: message });
+      }
+    }
+
+    $.ajax({
+      url: '{{ url_for("examples.api_publish_message") }}',
+      type: "POST",
+      contentType: "application/json",
+      data: JSON.stringify({
+        exchange_type: "fanout",
+        exchange_name: exchangeName,
+        routing_key: "", // Not used for fanout exchange
+        message: messageToSend,
+        mime_type: mimeType,
+        host: host,
+        port: parseInt(port),
+      }),
+      success: function (response) {
+        if (response.success) {
+          alert("Message sent successfully!");
+        } else {
+          alert("Error: " + response.message);
+        }
+      },
+      error: function (xhr, status, error) {
+        alert("Error sending message: " + error);
+      },
+    });
+  });
+
+  // Clear messages button
+  $("#clearMessages").click(function () {
+    if (resultId) {
+      $.ajax({
+        url: '{{ url_for("examples.api_clear_messages", result_id="placeholder") }}'.replace(
+          "placeholder",
+          resultId
+        ),
+        type: "POST",
+        success: function (response) {
+          if (response.success) {
+            $("#messageLog").html(
+              '<p class="text-muted">Messages cleared.</p>'
+            );
+          }
+        },
+      });
+    } else {
+      $("#messageLog").html('<p class="text-muted">No active consumer.</p>');
+    }
+  });
+
+  // Start polling for messages
+  function startMessagePolling() {
+    // Clear any existing interval
+    if (messagePollingInterval) {
+      clearInterval(messagePollingInterval);
+    }
+
+    // Start a new polling interval
+    messagePollingInterval = setInterval(function () {
+      if (resultId) {
+        $.ajax({
+          url: '{{ url_for("examples.api_get_messages", result_id="placeholder") }}'.replace(
+            "placeholder",
+            resultId
+          ),
+          type: "GET",
+          success: function (response) {
+            if (response.success && response.messages.length > 0) {
+              updateMessageLog(response.messages);
+            }
+          },
+        });
+      }
+    }, 1000); // Poll every second
+  }
+
+  // Update the message log with received messages
+  function updateMessageLog(messages) {
+    let html = "";
+    messages.forEach(function (msg) {
+      let timestamp = msg.timestamp || new Date().toLocaleString();
+      let content = msg.content || "Empty message";
+      let exchange = msg.exchange || "N/A";
+      let contentType = msg.content_type || "N/A";
+
+      // Format headers if present
+      let headersHtml = "";
+      if (msg.headers && Object.keys(msg.headers).length > 0) {
+        headersHtml +=
+          '<div class="message-headers mt-1"><small class="text-muted">Headers:</small><br>';
+        for (const [key, value] of Object.entries(msg.headers)) {
+          headersHtml += `<small class="text-muted">${key}: ${value}</small><br>`;
+        }
+        headersHtml += "</div>";
+      }
+
+      html += `
+                <div class="message-item border-bottom pb-2 mb-2">
+                    <div><strong>Time:</strong> ${timestamp}</div>
+                    <div><strong>Exchange:</strong> ${exchange}</div>
+                    <div><strong>Content Type:</strong> ${contentType}</div>
+                    <div class="mt-1"><strong>Content:</strong> <pre class="message-content p-2 bg-white border">${content}</pre></div>
+                    ${headersHtml}
+                </div>
+            `;
+    });
+
+    $("#messageLog").html(html);
+  }
+</script>
+{% endblock %}
