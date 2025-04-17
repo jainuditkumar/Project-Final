@@ -4,11 +4,22 @@ import random
 import time
 import logging
 import threading
+import requests
+import docker
 from typing import Dict, List, Optional, Tuple, Any, Callable
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+from .docker_utils import client
+
+docker_client = client if client else None
+
+if docker_client:
+    logger.info("Docker client initialized successfully.")
+else:
+    logger.error("Failed to initialize Docker client. Docker features will be disabled.")
 
 class BrokerConnection:
     """Represents a single connection to a RabbitMQ broker"""
@@ -226,12 +237,31 @@ class ConnectionLoadBalancer:
 class BrokerConnectionManager:
     """Manages connections to a RabbitMQ broker cluster with load balancing"""
     
-    def __init__(self):
-        """Initialize the broker connection manager"""
+    def __init__(self, auto_discover_cluster=False, api_port=15672, auto_discover_docker=True):
+        """Initialize the broker connection manager
+        
+        Args:
+            auto_discover_cluster: If True, automatically discover and register all nodes in a cluster
+            api_port: Port for the RabbitMQ management API (typically 15672)
+            auto_discover_docker: If True, automatically discover and register RabbitMQ nodes from Docker
+        """
         self.load_balancer = ConnectionLoadBalancer()
         self.health_check_interval = 60  # seconds
         self.last_health_check = 0
         self.primary_broker_id = None  # Primary broker to use if specified
+        self.auto_discover_cluster = auto_discover_cluster
+        self.auto_discover_docker = auto_discover_docker
+        self.api_port = api_port
+        self.cluster_check_interval = 300  # Check for new nodes every 5 minutes
+        self.docker_check_interval = 60  # Check for new Docker containers every minute
+        self.last_cluster_check = 0
+        self.last_docker_check = 0
+        self.cluster_nodes = set()  # Track known cluster nodes
+        self.docker_containers = set()  # Track known Docker container IDs
+        
+        # If auto-discovery of Docker containers is enabled, do an initial discovery
+        if self.auto_discover_docker and docker_client:
+            self.discover_docker_rabbitmq_nodes()
     
     def register_broker(self, broker_id: int, host: str, port: int, 
                  virtual_host: str = "/", 
@@ -263,11 +293,122 @@ class BrokerConnectionManager:
             if self.primary_broker_id is None:
                 self.primary_broker_id = broker_id
                 
+                # If auto-discovery is enabled, try to discover other nodes in the cluster
+                if self.auto_discover_cluster:
+                    self.discover_cluster_nodes(host, username, password)
+                
             return True
         else:
             logger.error(f"Failed to register broker {broker_id} with connection manager")
             return False
     
+    def discover_cluster_nodes(self, seed_host: str, username: str = "guest", password: str = "guest") -> bool:
+        """Discover and connect to all nodes in a RabbitMQ cluster using the management API
+        
+        Args:
+            seed_host: Hostname or IP of a known cluster member
+            username: Username for authentication to the management API
+            password: Password for authentication to the management API
+        
+        Returns:
+            bool: True if discovery was successful
+        """
+        try:
+            logger.info(f"Attempting to discover RabbitMQ cluster nodes from seed host {seed_host}")
+            url = f"http://{seed_host}:{self.api_port}/api/nodes"
+            response = requests.get(url, auth=(username, password))
+            
+            logger.debug(f"API response: recieved {response.status_code} from {url}")
+            if response.status_code != 200:
+                logger.error(f"Failed to discover cluster nodes: HTTP {response.status_code}")
+                return False
+                
+            nodes_data = response.json()
+            discovered = False
+            
+            for i, node in enumerate(nodes_data):
+                node_name = node.get('name')
+                if not node_name:
+                    continue
+                    
+                # Extract hostname from node name (node names are like 'rabbit@hostname')
+                if '@' in node_name:
+                    hostname = node_name.split('@')[1]
+                else:
+                    hostname = node_name
+                    
+                # Skip already registered nodes
+                if hostname in self.cluster_nodes:
+                    continue
+                    
+                # Register this node with a new broker_id
+                broker_id = 1000 + len(self.cluster_nodes)  # Start from 1000 for auto-discovered nodes
+                
+                logger.info(f"Discovered cluster node {hostname}, registering as broker {broker_id}")
+                
+                # Try standard AMQP port, user can override this if needed
+                amqp_port = 5672
+                
+                if self.register_broker(
+                    broker_id=broker_id,
+                    host=hostname,
+                    port=amqp_port,
+                    username=username,
+                    password=password
+                ):
+                    self.cluster_nodes.add(hostname)
+                    discovered = True
+            
+            self.last_cluster_check = time.time()
+            return discovered
+            
+        except Exception as e:
+            logger.error(f"Error discovering cluster nodes: {e}")
+            return False
+            
+    def check_for_new_cluster_nodes(self):
+        """Periodically check for new nodes in the cluster"""
+        current_time = time.time()
+        if not self.auto_discover_cluster or current_time - self.last_cluster_check < self.cluster_check_interval:
+            return
+            
+        # Find a working connection to use for discovery
+        for conn in self.load_balancer.connections:
+            if conn.is_healthy():
+                self.discover_cluster_nodes(conn.host, conn.username, conn.password)
+                break
+    
+    def register_cluster(self, seed_host: str, username: str = "guest", password: str = "guest") -> bool:
+        """Register an entire RabbitMQ cluster with a single seed node
+        
+        Args:
+            seed_host: Hostname or IP of any cluster member
+            username: Username for authentication
+            password: Password for authentication
+        
+        Returns:
+            bool: True if at least one node was successfully registered
+        """
+        # First register the seed host
+        initial_broker_id = 1
+        success = self.register_broker(
+            broker_id=initial_broker_id,
+            host=seed_host,
+            port=5672,  # Default AMQP port
+            username=username,
+            password=password
+        )
+        
+        if not success:
+            return False
+            
+        # If automatic discovery is enabled, it will have already run
+        # Otherwise, explicitly discover the rest of the cluster
+        if not self.auto_discover_cluster:
+            return self.discover_cluster_nodes(seed_host, username, password)
+        
+        return True
+
     def unregister_broker(self, broker_id: int) -> bool:
         """Unregister a RabbitMQ broker from the connection manager"""
         result = self.load_balancer.unregister_connection(broker_id)
@@ -295,6 +436,14 @@ class BrokerConnectionManager:
         if current_time - self.last_health_check > self.health_check_interval:
             self.load_balancer.perform_health_check()
             self.last_health_check = current_time
+        
+        # Check for new cluster nodes if auto-discovery is enabled
+        if self.auto_discover_cluster:
+            self.check_for_new_cluster_nodes()
+            
+        # Check for Docker containers if auto-discovery is enabled
+        if self.auto_discover_docker:
+            self.check_for_docker_containers()
         
         # If a specific broker is requested, try to get that one
         if broker_id is not None:
@@ -330,3 +479,146 @@ class BrokerConnectionManager:
         """Close all connections managed by this connection manager"""
         self.release_all_connections()
         logger.info("Closed all connections in BrokerConnectionManager")
+    
+    def discover_docker_rabbitmq_nodes(self) -> bool:
+        """Discover and register RabbitMQ containers running in Docker
+        
+        Returns:
+            bool: True if any new RabbitMQ containers were discovered and registered
+        """
+        if not docker_client:
+            logger.warning("Docker client is not available. Cannot discover Docker containers.")
+            return False
+            
+        try:
+            logger.info("Discovering RabbitMQ containers in Docker...")
+            # Look for RabbitMQ containers
+            containers = docker_client.containers.list(
+                filters={"status": "running", "ancestor": "rabbitmq"}
+            )
+            
+            # Also look for our DMQ-specific RabbitMQ containers
+            dmq_containers = docker_client.containers.list(
+                filters={"status": "running", "name": "dmq-rabbitmq"}
+            )
+            
+            # Combine the results, removing duplicates
+            all_containers = list(set(containers + dmq_containers))
+            
+            if not all_containers:
+                logger.info("No running RabbitMQ containers found in Docker")
+                return False
+                
+            logger.info(f"Found {len(all_containers)} potential RabbitMQ containers")
+            
+            discovered = False
+            for container in all_containers:
+                # Skip if we've already processed this container
+                if container.id in self.docker_containers:
+                    continue
+                    
+                # Get container details
+                container.reload()  # Ensure we have the latest info
+                
+                # Extract the container name without leading slash
+                container_name = container.name
+                if container_name.startswith('/'):
+                    container_name = container_name[1:]
+                
+                # Try to extract node ID from name for DMQ containers (format: dmq-rabbitmq-X)
+                node_id = None
+                if container_name.startswith('dmq-rabbitmq-'):
+                    try:
+                        node_id = int(container_name.split('-')[-1])
+                    except (ValueError, IndexError):
+                        # If we can't parse the ID, generate one
+                        node_id = 2000 + len(self.docker_containers)
+                else:
+                    # For non-DMQ containers, generate an ID
+                    node_id = 2000 + len(self.docker_containers)
+                
+                # Find the host and port mapping for AMQP
+                host = 'localhost'  # Default to localhost for Docker port mappings
+                port = None
+                
+                # Look for port mappings
+                port_mappings = container.ports.get('5672/tcp')
+                if port_mappings and len(port_mappings) > 0:
+                    # Use the first host port mapping
+                    port = int(port_mappings[0]['HostPort'])
+                else:
+                    # If no port mapping is found, check if it's in our network
+                    if 'dmq-rabbitmq-network' in container.attrs.get('NetworkSettings', {}).get('Networks', {}):
+                        # If in our network, use its IP directly with standard port
+                        host = container.attrs['NetworkSettings']['Networks']['dmq-rabbitmq-network'].get('IPAddress')
+                        port = 5672  # Standard AMQP port
+                    else:
+                        logger.warning(f"Container {container_name} has no accessible AMQP port mapping")
+                        continue
+                
+                if not port:
+                    logger.warning(f"Could not determine AMQP port for container {container_name}")
+                    continue
+                
+                # Register this broker
+                logger.info(f"Registering Docker container {container_name} as broker {node_id} at {host}:{port}")
+                
+                if self.register_broker(
+                    broker_id=node_id,
+                    host=host,
+                    port=port,
+                    username="guest",  # Default credentials, can be customized
+                    password="guest"
+                ):
+                    self.docker_containers.add(container.id)
+                    discovered = True
+                    logger.info(f"Successfully registered Docker container {container_name}")
+                else:
+                    logger.warning(f"Failed to register Docker container {container_name}")
+            
+            self.last_docker_check = time.time()
+            return discovered
+            
+        except Exception as e:
+            logger.error(f"Error discovering Docker RabbitMQ containers: {e}")
+            return False
+    
+    def check_for_docker_containers(self):
+        """Periodically check for new or removed Docker containers"""
+        current_time = time.time()
+        if not self.auto_discover_docker or not docker_client or current_time - self.last_docker_check < self.docker_check_interval:
+            return
+        
+        try:
+            # Check for new containers
+            self.discover_docker_rabbitmq_nodes()
+            
+            # Check if any previously discovered containers are no longer running
+            if not self.docker_containers:
+                return
+                
+            containers_to_remove = set()
+            for container_id in self.docker_containers:
+                try:
+                    container = docker_client.containers.get(container_id)
+                    if container.status != "running":
+                        containers_to_remove.add(container_id)
+                except docker.errors.NotFound:
+                    # Container no longer exists
+                    containers_to_remove.add(container_id)
+            
+            # Remove connections for containers that are no longer running
+            for container_id in containers_to_remove:
+                # Find the broker ID for this container
+                for conn in self.load_balancer.connections:
+                    # Note: This is a simplistic approach - in a full implementation, 
+                    # you would want to store a mapping of container IDs to broker IDs
+                    if 2000 <= conn.broker_id < 3000:  # ID range for Docker containers
+                        self.unregister_broker(conn.broker_id)
+                        logger.info(f"Unregistered broker {conn.broker_id} for stopped/removed container")
+                
+                self.docker_containers.remove(container_id)
+                logger.info(f"Removed tracking for Docker container {container_id}")
+                
+        except Exception as e:
+            logger.error(f"Error checking Docker containers: {e}")

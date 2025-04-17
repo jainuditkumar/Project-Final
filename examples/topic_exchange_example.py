@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from dmq.connection_manager import BrokerConnectionManager
 from dmq.messaging import TopicProducer, TopicConsumer
+import pika
 
 # Configure logging
 logging.basicConfig(
@@ -175,20 +176,12 @@ def run_example():
             
             # Create message headers
             headers = {
-                "timestamp": time.time(),
+                "timestamp": str(time.time()),
                 "message_id": str(i)
             }
             
-            # Publish the message
-            producer.publish(
-                routing_key=routing_key,
-                message=message,
-                properties={
-                    "headers": headers,
-                    "content_type": "text/plain",
-                    "delivery_mode": 2  # Persistent
-                }
-            )
+            # Publish the message with the routing key and headers
+            producer.publish(message, routing_key=routing_key, headers=headers)
             
             logger.info(f"Published message with routing key: {routing_key}")
             time.sleep(0.5)  # Small delay between messages

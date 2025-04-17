@@ -258,9 +258,9 @@ def run_example():
     setup_broker_manager = BrokerConnectionManager()
     
     # Register the RabbitMQ nodes
-    setup_broker_manager.register_broker(1, "localhost", 5672)
-    setup_broker_manager.register_broker(2, "localhost", 5682)
-    setup_broker_manager.register_broker(3, "localhost", 5692)
+    # setup_broker_manager.register_broker(1, "localhost", 5672)
+    # setup_broker_manager.register_broker(2, "localhost", 5682)
+    # setup_broker_manager.register_broker(3, "localhost", 5692)
     
     if len(setup_broker_manager.load_balancer.connections) == 0:
         logger.error("Failed to connect to RabbitMQ cluster. Is the DMQ cluster running?")
@@ -294,9 +294,9 @@ def run_example():
         
         # Create a main consumer with dedicated connection manager
         main_consumer_cm = BrokerConnectionManager()
-        main_consumer_cm.register_broker(1, "localhost", 5672)
-        main_consumer_cm.register_broker(2, "localhost", 5682)
-        main_consumer_cm.register_broker(3, "localhost", 5692)
+        # main_consumer_cm.register_broker(1, "localhost", 5672)
+        # main_consumer_cm.register_broker(2, "localhost", 5682)
+        # main_consumer_cm.register_broker(3, "localhost", 5692)
         
         if len(main_consumer_cm.load_balancer.connections) == 0:
             logger.error("Failed to connect to RabbitMQ cluster for main consumer")
@@ -330,9 +330,9 @@ def run_example():
         
         # Create a retry consumer with dedicated connection manager
         retry_consumer_cm = BrokerConnectionManager()
-        retry_consumer_cm.register_broker(1, "localhost", 5672)
-        retry_consumer_cm.register_broker(2, "localhost", 5682)
-        retry_consumer_cm.register_broker(3, "localhost", 5692)
+        # retry_consumer_cm.register_broker(1, "localhost", 5672)
+        # retry_consumer_cm.register_broker(2, "localhost", 5682)
+        # retry_consumer_cm.register_broker(3, "localhost", 5692)
         
         if len(retry_consumer_cm.load_balancer.connections) == 0:
             logger.error("Failed to connect to RabbitMQ cluster for retry consumer")
@@ -366,9 +366,9 @@ def run_example():
         
         # Create a dead letter consumer with dedicated connection manager
         dlq_consumer_cm = BrokerConnectionManager()
-        dlq_consumer_cm.register_broker(1, "localhost", 5672)
-        dlq_consumer_cm.register_broker(2, "localhost", 5682)
-        dlq_consumer_cm.register_broker(3, "localhost", 5692)
+        # dlq_consumer_cm.register_broker(1, "localhost", 5672)
+        # dlq_consumer_cm.register_broker(2, "localhost", 5682)
+        # dlq_consumer_cm.register_broker(3, "localhost", 5692)
         
         if len(dlq_consumer_cm.load_balancer.connections) == 0:
             logger.error("Failed to connect to RabbitMQ cluster for DLQ consumer")
@@ -437,9 +437,9 @@ def run_example():
         
         # Create a publisher with dedicated connection manager
         publisher_cm = BrokerConnectionManager()
-        publisher_cm.register_broker(1, "localhost", 5672)
-        publisher_cm.register_broker(2, "localhost", 5682)
-        publisher_cm.register_broker(3, "localhost", 5692)
+        # publisher_cm.register_broker(1, "localhost", 5672)
+        # publisher_cm.register_broker(2, "localhost", 5682)
+        # publisher_cm.register_broker(3, "localhost", 5692)
         
         if len(publisher_cm.load_balancer.connections) == 0:
             logger.error("Failed to connect to RabbitMQ cluster for publisher")

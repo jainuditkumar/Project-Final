@@ -101,9 +101,9 @@ def create_consumer(worker_id, queue_name, prefetch_count=1):
     """Create a consumer with a specific worker ID and dedicated connection manager"""
     # Create dedicated connection manager for this consumer
     worker_broker_manager = BrokerConnectionManager()
-    worker_broker_manager.register_broker(1, "localhost", 5672)
-    worker_broker_manager.register_broker(2, "localhost", 5682)
-    worker_broker_manager.register_broker(3, "localhost", 5692)
+    # worker_broker_manager.register_broker(1, "localhost", 5672)
+    # worker_broker_manager.register_broker(2, "localhost", 5682)
+    # worker_broker_manager.register_broker(3, "localhost", 5692)
     
     if len(worker_broker_manager.load_balancer.connections) == 0:
         logger.error(f"Worker {worker_id} failed to connect to RabbitMQ cluster")
@@ -165,9 +165,9 @@ def produce_tasks(queue_name, num_tasks):
     """Produce a batch of tasks to the queue using dedicated connection manager"""
     # Create dedicated connection manager for producer
     producer_broker_manager = BrokerConnectionManager()
-    producer_broker_manager.register_broker(1, "localhost", 5672)
-    producer_broker_manager.register_broker(2, "localhost", 5682)
-    producer_broker_manager.register_broker(3, "localhost", 5692)
+    # producer_broker_manager.register_broker(1, "localhost", 5672)
+    # producer_broker_manager.register_broker(2, "localhost", 5682)
+    # producer_broker_manager.register_broker(3, "localhost", 5692)
     
     if len(producer_broker_manager.load_balancer.connections) == 0:
         logger.error("Producer failed to connect to RabbitMQ cluster")
@@ -268,9 +268,9 @@ def run_example():
     
     # Create a separate connection manager for setup
     setup_broker_manager = BrokerConnectionManager()
-    setup_broker_manager.register_broker(1, "localhost", 5672)
-    setup_broker_manager.register_broker(2, "localhost", 5682)
-    setup_broker_manager.register_broker(3, "localhost", 5692)
+    # setup_broker_manager.register_broker(1, "localhost", 5672)
+    # setup_broker_manager.register_broker(2, "localhost", 5682)
+    # setup_broker_manager.register_broker(3, "localhost", 5692)
     
     if len(setup_broker_manager.load_balancer.connections) == 0:
         logger.error("Failed to connect to RabbitMQ cluster. Is the DMQ cluster running?")

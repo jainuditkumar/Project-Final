@@ -11,6 +11,7 @@ import sys
 import time
 import logging
 import threading
+import json
 import pika
 from typing import Dict, Any
 
@@ -42,8 +43,14 @@ def message_handler(channel, method, properties, body):
     thread_id = threading.get_ident()
     
     try:
-        # Decode the message body
-        message = body.decode('utf-8')
+        # Decode the message body - check if it's JSON
+        if properties.content_type == 'application/json':
+            message_str = body.decode('utf-8')
+            message = json.loads(message_str)
+        else:
+            # Plain text message
+            message = body.decode('utf-8')
+            
         logger.info(f"Consumer {consumer_tag} on queue {queue_name} (thread {thread_id}) received: {message}")
         
         if headers:
@@ -145,9 +152,9 @@ def run_example():
     broker_manager = BrokerConnectionManager()
     
     # Register the RabbitMQ nodes
-    broker_manager.register_broker(1, "localhost", 5672)
-    broker_manager.register_broker(2, "localhost", 5682)
-    broker_manager.register_broker(3, "localhost", 5692)
+    # broker_manager.register_broker(1, "localhost", 5672)
+    # broker_manager.register_broker(2, "localhost", 5682)
+    # broker_manager.register_broker(3, "localhost", 5692)
     
     if len(broker_manager.load_balancer.connections) == 0:
         logger.error("Failed to connect to RabbitMQ cluster. Is the DMQ cluster running?")
@@ -180,12 +187,15 @@ def run_example():
         # FIRST: Publish broadcast notifications
         logger.info("Publishing broadcast notifications...")
         for i in range(5):
-            # Create a notification message
-            notification = f"System-wide notification #{i}: Maintenance scheduled at {time.ctime(time.time() + 3600)}"
+            # Create a notification message as a dictionary
+            notification = {
+                "message": f"System-wide notification #{i}: Maintenance scheduled at {time.ctime(time.time() + 3600)}",
+                "notification_id": i
+            }
             
             # Add headers
             properties = pika.BasicProperties(
-                content_type='text/plain',
+                content_type='application/json',
                 delivery_mode=2,  # Persistent
                 headers={
                     "notification_id": str(i),
@@ -194,11 +204,14 @@ def run_example():
                 }
             )
             
+            # Convert dictionary to JSON string, then encode to bytes
+            message_body = json.dumps(notification).encode('utf-8')
+            
             # Publish to the fanout exchange (routing key is ignored)
             publisher_channel.basic_publish(
                 exchange=exchange_name,
                 routing_key='',  # Ignored for fanout exchanges
-                body=notification.encode('utf-8'),
+                body=message_body,
                 properties=properties
             )
             

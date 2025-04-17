@@ -67,9 +67,9 @@ def setup_consumer(exchange_name, queue_name, binding_headers, match_type="all")
     """
     # Create dedicated connection manager for this consumer
     consumer_broker_manager = BrokerConnectionManager()
-    consumer_broker_manager.register_broker(1, "localhost", 5672)
-    consumer_broker_manager.register_broker(2, "localhost", 5682)
-    consumer_broker_manager.register_broker(3, "localhost", 5692)
+    # consumer_broker_manager.register_broker(1, "localhost", 5672)
+    # consumer_broker_manager.register_broker(2, "localhost", 5682)
+    # consumer_broker_manager.register_broker(3, "localhost", 5692)
     
     if len(consumer_broker_manager.load_balancer.connections) == 0:
         logger.error(f"Failed to connect to RabbitMQ cluster for consumer {queue_name}")

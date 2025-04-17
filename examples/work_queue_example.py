@@ -65,9 +65,9 @@ def run_example():
     broker_manager = BrokerConnectionManager()
     
     # Register the RabbitMQ nodes 
-    broker_manager.register_broker(1, "localhost", 5672)
-    broker_manager.register_broker(2, "localhost", 5682)
-    broker_manager.register_broker(3, "localhost", 5692)
+    # broker_manager.register_broker(1, "localhost", 5672)
+    # broker_manager.register_broker(2, "localhost", 5682)
+    # broker_manager.register_broker(3, "localhost", 5692)
     
     if len(broker_manager.load_balancer.connections) == 0:
         logger.error("Failed to connect to RabbitMQ cluster. Is the DMQ cluster running?")
@@ -93,9 +93,9 @@ def run_example():
     for i in range(3):
         # Create separate connection manager for each worker
         worker_broker_manager = BrokerConnectionManager()
-        worker_broker_manager.register_broker(1, "localhost", 5672)
-        worker_broker_manager.register_broker(2, "localhost", 5682)
-        worker_broker_manager.register_broker(3, "localhost", 5692)
+        # worker_broker_manager.register_broker(1, "localhost", 5672)
+        # worker_broker_manager.register_broker(2, "localhost", 5682)
+        # worker_broker_manager.register_broker(3, "localhost", 5692)
         
         if len(worker_broker_manager.load_balancer.connections) == 0:
             logger.error(f"Failed to connect Worker-{i+1} to RabbitMQ cluster")

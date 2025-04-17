@@ -63,9 +63,9 @@ def run_example():
     broker_manager = BrokerConnectionManager()
     
     # Register the RabbitMQ nodes from the cluster with correct ports
-    broker_manager.register_broker(1, "localhost", 5672)  # Primary node
-    broker_manager.register_broker(2, "localhost", 5682)  # Node 2
-    broker_manager.register_broker(3, "localhost", 5692)  # Node 3
+    # broker_manager.register_broker(1, "localhost", 5672)  # Primary node
+    # broker_manager.register_broker(2, "localhost", 5682)  # Node 2
+    # broker_manager.register_broker(3, "localhost", 5692)  # Node 3
     
     if len(broker_manager.load_balancer.connections) > 0:
         logger.info(f"Successfully connected to RabbitMQ cluster with {len(broker_manager.load_balancer.connections)} nodes")

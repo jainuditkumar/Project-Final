@@ -1,17 +1,14 @@
 # RabbitMQ client library
-pika
+pika==1.3.2
 
 # Configuration management
-python-dotenv
+python-dotenv==1.0.0
 
 # Testing libraries
-pytest
-pytest-cov
-mock
+pytest==7.4.0
+pytest-cov==4.1.0
+mock==5.1.0
 
 # Utility libraries
-requests
+requests==2.31.0 
 docker
-
-# Web UI components
-flask
