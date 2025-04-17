@@ -1,0 +1,71 @@
+/* Main Styling */
+body {
+    background-color: #f8f9fa;
+}
+
+.navbar {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.card {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
+    border: none;
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Table styling */
+.table {
+    margin-bottom: 0;
+}
+
+.table th {
+    font-weight: 600;
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+/* Status badges */
+.badge {
+    font-weight: 500;
+    padding: 5px 10px;
+}
+
+/* Pre for JSON formatting */
+pre {
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    padding: 8px;
+    margin: 0;
+    font-size: 12px;
+    max-height: 80px;
+    overflow-y: auto;
+}
+
+/* Form controls */
+.form-control:focus {
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    border-color: #80bdff;
+}
+
+/* Refresh button animations */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+/* Message status colors */
+.status-published {
+    background-color: #ffc107;
+}
+
+.status-consumed {
+    background-color: #28a745;
+}

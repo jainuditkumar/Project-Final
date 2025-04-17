@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distributed Message Queue Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container">
+            <span class="navbar-brand mb-0 h1">Distributed Message Queue Dashboard</span>
+        </div>
+    </nav>
+    
+    <div class="container mt-4">
+        <div class="row">
+            <!-- Cluster Status Panel -->
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5>Cluster Status</h5>
+                    </div>
+                    <div class="card-body">
+                        <h6>RabbitMQ Nodes</h6>
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Node ID</th>
+                                        <th>Host</th>
+                                        <th>Port</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="nodes-table">
+                                    {% for node in cluster_status.nodes %}
+                                    <tr>
+                                        <td>{{ node.id }}</td>
+                                        <td>{{ node.host }}</td>
+                                        <td>{{ node.port }}</td>
+                                        <td>
+                                            <span class="badge {% if node.status == 'online' %}bg-success{% else %}bg-danger{% endif %}">
+                                                {{ node.status }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <h6 class="mt-3">Queues</h6>
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Queue Name</th>
+                                        <th>Messages</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="queues-table">
+                                    {% for queue in cluster_status.queues %}
+                                    <tr>
+                                        <td>{{ queue.name }}</td>
+                                        <td>{{ queue.messages }}</td>
+                                        <td>
+                                            <span class="badge bg-success">Active</span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Message Publisher Panel -->
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5>Publish Message</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="publish-form">
+                            <div class="mb-3">
+                                <label for="queue-name" class="form-label">Queue Name</label>
+                                <input type="text" class="form-control" id="queue-name" value="work_queue" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="task-id" class="form-label">Task ID</label>
+                                <input type="number" class="form-control" id="task-id" value="1" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="task-description" class="form-label">Task Description</label>
+                                <input type="text" class="form-control" id="task-description" value="Sample Task" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="complexity" class="form-label">Complexity (1-5)</label>
+                                <input type="number" class="form-control" id="complexity" min="1" max="5" value="1" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Publish Message</button>
+                            <div class="mt-3" id="publish-result"></div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Message History Panel -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5>Message History</h5>
+                        <button id="refresh-history" class="btn btn-sm btn-outline-secondary">Refresh</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Queue</th>
+                                        <th>Message Content</th>
+                                        <th>Status</th>
+                                        <th>Timestamp</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="message-history">
+                                    {% for message in message_history %}
+                                    <tr>
+                                        <td>{{ message.id }}</td>
+                                        <td>{{ message.queue }}</td>
+                                        <td><pre>{{ message.content | tojson(indent=2) }}</pre></td>
+                                        <td>
+                                            <span class="badge {% if message.status == 'published' %}bg-warning{% else %}bg-success{% endif %}">
+                                                {{ message.status }}
+                                            </span>
+                                        </td>
+                                        <td>{{ message.timestamp | timestamp }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='main.js') }}"></script>
+</body>
+</html>

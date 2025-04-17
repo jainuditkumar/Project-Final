@@ -1,0 +1,17 @@
+# RabbitMQ client library
+pika
+
+# Configuration management
+python-dotenv
+
+# Testing libraries
+pytest
+pytest-cov
+mock
+
+# Utility libraries
+requests
+docker
+
+# Web UI components
+flask
