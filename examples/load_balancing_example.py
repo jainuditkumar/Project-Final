@@ -21,7 +21,6 @@ import queue
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from dmq.connection_manager import BrokerConnectionManager
-from dmq.dmq import DMQCluster
 
 # Configure logging
 logging.basicConfig(

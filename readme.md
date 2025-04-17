@@ -5,29 +5,42 @@ This project implements a distributed messaging queue system using RabbitMQ, ena
 ## Features
 
 - **Message Queuing and Delivery**: Ensures messages are processed in order
-- **Publisher-Subscriber and Work Queue Models**: Implements different messaging patterns
+- **Multiple Exchange Types**: Implements Direct, Topic, Fanout, and Headers exchanges
 - **Message Persistence**: Ensures messages are not lost during failures
-- **Acknowledge & Retry Mechanisms**: Handles failures gracefully
-- **Load Balancing with Multiple Consumers**: Distributes work efficiently
-- **Clustering & High Availability**: Runs RabbitMQ across multiple nodes
-- **Multiple Exchange Types**: Implements Direct, Topic, and Fanout exchanges
+- **Acknowledge & Retry Mechanisms**: Handles failures gracefully with manual acknowledgments
+- **Load Balancing**: Distributes work across multiple RabbitMQ nodes
+- **Clustering & High Availability**: Runs RabbitMQ across multiple nodes for fault tolerance
+- **Connection Management**: Manages connections to multiple brokers efficiently
+- **Topic-Based Routing**: Routes messages based on routing patterns
+- **Web Interface**: Monitor and manage the cluster through a web application
 
 ## Project Structure
 
 ```
-distributed-messaging-queue-rabbitmq/
-├── src/
-│   ├── producers/          # Message publishers
-│   ├── consumers/          # Message consumers
-│   ├── utils/              # Utility functions
-│   └── config/             # Configuration settings
-├── docker/                 # Docker configuration
-├── tests/                  # Unit and integration tests
-├── scripts/                # Cluster setup/teardown scripts
-├── .env                    # Environment variables
-├── .gitignore              # Git ignore file
-├── README.md               # Project documentation
-└── requirements.txt        # Python dependencies
+dmq-project/
+├── dmq/                   # Core messaging library
+│   ├── connection_manager.py  # Manages broker connections
+│   ├── messaging.py       # Producer and consumer implementations
+│   ├── cluster.py         # RabbitMQ cluster management
+│   └── docker_utils.py    # Docker container utilities
+├── examples/              # Example implementations
+│   ├── direct_exchange_example.py
+│   ├── topic_exchange_example.py
+│   ├── fanout_exchange_example.py
+│   ├── headers_exchange_example.py
+│   ├── message_persistence_example.py
+│   ├── load_balancing_example.py
+│   └── acknowledge_retry_example.py
+├── app/                   # Web application for monitoring
+│   ├── templates/         # HTML templates
+│   ├── static/            # Static assets (CSS, JS)
+│   └── routes.py          # Web routes
+├── scripts/               # Utility scripts
+│   ├── setup_cluster.sh   # Creates RabbitMQ cluster
+│   └── teardown_cluster.sh # Removes RabbitMQ cluster
+├── dmq-cli.sh             # Command-line interface script
+├── requirements.txt       # Python dependencies
+└── README.md              # Project documentation
 ```
 
 ## Prerequisites
@@ -41,15 +54,15 @@ distributed-messaging-queue-rabbitmq/
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/distributed-messaging-queue-rabbitmq.git
-cd distributed-messaging-queue-rabbitmq
+git clone https://github.com/yourusername/dmq-project.git
+cd dmq-project
 ```
 
 2. Create and activate a virtual environment:
 
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ```
 
 3. Install dependencies:
@@ -58,40 +71,99 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. Set up the RabbitMQ cluster:
+4. Make scripts executable:
 
 ```bash
-cd scripts
-chmod +x setup_cluster.sh
-./setup_cluster.sh
+chmod +x make-scripts-executable.sh
+./make-scripts-executable.sh
+```
+
+5. Set up the RabbitMQ cluster:
+
+```bash
+./scripts/setup_cluster.sh
 ```
 
 ## Usage
 
-### Start a Direct Exchange Consumer
+### Command-Line Interface
+
+Use the DMQ CLI to manage the cluster:
 
 ```bash
-python -m src.consumers.consumer_direct
+./dmq-cli.sh start  # Start the cluster
+./dmq-cli.sh stop   # Stop the cluster
+./dmq-cli.sh status # Check cluster status
 ```
 
-### Start a Topic Exchange Consumer
+### Run Examples
+
+To run the examples to see different messaging patterns in action:
 
 ```bash
-python -m src.consumers.consumer_topic
+python -m examples.direct_exchange_example
+python -m examples.topic_exchange_example
+python -m examples.fanout_exchange_example
 ```
 
-### Start a Fanout Exchange Consumer
+### Web Interface
+
+Start the web interface to monitor and manage the cluster:
 
 ```bash
-python -m src.consumers.consumer_fanout
+python -m app.app
 ```
 
-## Testing
+Then navigate to `http://localhost:5000` in your web browser.
 
-Run the test suite:
+## Library Usage
 
-```bash
-pytest
+### Create a Producer
+
+```python
+from dmq.connection_manager import BrokerConnectionManager
+from dmq.messaging import DirectProducer
+
+# Create connection manager
+connection_manager = BrokerConnectionManager()
+connection_manager.register_broker(1, "localhost", 5672)
+
+# Create producer
+producer = DirectProducer(connection_manager=connection_manager)
+
+# Publish message
+producer.publish(
+    routing_key="queue_name",
+    message="Hello World!",
+    properties=None  # Optional message properties
+)
+```
+
+### Create a Consumer
+
+```python
+from dmq.connection_manager import BrokerConnectionManager
+from dmq.messaging import DirectConsumer
+
+# Create connection manager
+connection_manager = BrokerConnectionManager()
+connection_manager.register_broker(1, "localhost", 5672)
+
+# Create consumer
+consumer = DirectConsumer(
+    queue_name="queue_name",
+    connection_manager=connection_manager,
+    auto_ack=False  # Manual acknowledgment
+)
+
+# Define message handler
+def message_handler(message, headers):
+    print(f"Received message: {message}")
+    return True  # Acknowledge message
+
+# Start consuming
+consumer.declare_queue(durable=True)
+consumer.start_consuming(message_handler)
 ```
 
 ## Tear Down Cluster
@@ -99,9 +171,7 @@ pytest
 To stop and remove the RabbitMQ cluster:
 
 ```bash
-cd scripts
-chmod +x teardown_cluster.sh
-./teardown_cluster.sh
+./scripts/teardown_cluster.sh
 ```
 
 ## License
